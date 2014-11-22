@@ -19340,7 +19340,7 @@ boundaries."
 			    (not (cdr (org-element-contents parent)))))
 		      (org-string-match-p file-extension-re
 					  (org-element-property :path link)))
-	     (let ((file (expand-file-name (org-element-property :path link))))
+	     (let ((file (substitute-in-file-name (expand-file-name (org-element-property :path link)))))
 	       (when (file-exists-p file)
 		 (let ((width
 			;; Apply `org-image-actual-width' specifications.
@@ -19378,10 +19378,29 @@ boundaries."
 			     'org-image-overlay)))
 		   (if (and (car-safe old) refresh)
 		       (image-refresh (overlay-get (cdr old) 'display))
-		     (let ((image (create-image file
-						  (and width 'imagemagick)
-						  nil
-						  :width width)))
+		     (let ((image 
+			    (let ((newname
+				   (if (org-file-remote-p file)
+				       (let* ((tramp-tmpdir (concat
+							     (if (featurep 'xemacs)
+								 (temp-directory)
+							       temporary-file-directory)
+							     "/tramp"
+							     (org-file-remote-p file)
+							     (file-name-directory
+							      (org-babel-local-file-name file))))
+					      (newname (concat
+							tramp-tmpdir 
+							(file-name-nondirectory file))))
+					 (make-directory tramp-tmpdir t)
+					 (if (file-newer-than-file-p file newname)
+					     (copy-file file newname t t))
+					 newname)
+				     file)))
+			      (create-image newname
+					    (and width 'imagemagick)
+					    nil
+					    :width width))))
 		       (when image
 			 (let* ((link
 				 ;; If inline image is the description
